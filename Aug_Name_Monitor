@@ -1,0 +1,3 @@
+zipfilePath_ = '/Users/mengjichen/Desktop/Roche/201608_Names_VR'
+destinationfile_path = '/Users/mengjichen/Desktop/Roche/201608_Names_VR'
+MOVEIT = readMoveIt('/Users/mengjichen/Desktop/Roche/201608_Names_VR', '*.FLAT')
