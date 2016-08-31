@@ -1,6 +1,6 @@
 # Data monitor report parameters
 # reset directory & read in DCR & DCR ITEM data
-wd = os.chdir('/Users/mengjichen/Desktop/Roche/201607')
+wd = os.chdir('/Users/mengjichen/Desktop/Roche/201608/BUG')
 
 # reset file directory to load in DCR data
 SFDC_DCR_PATH = './SFDC_DCR'
@@ -14,8 +14,8 @@ OK_DCR_sub_fields = ['Id', 'Master_DCR_g__c', 'sourceFile', 'Type_g__c', 'Remark
 ITEM_sub_fields = ['Id', 'Change_Request_ref_g__c', 'sourceFile', 'Field_API_Name_g__c', 'Name', 'Old_Field_Value_Text_g__c', 'Field_value_text_g__c']
 
 # Obtaining data from MOVEIT 
-unzipper_source = './201607_VR/'
-unzipper_destination = './201607/MOVEIT'
+unzipper_source = './VR/'
+unzipper_destination = './MOVEIT'
 path = './MOVEIT'
 pattern_ = '*.FLAT'
 
@@ -28,7 +28,7 @@ MoveIt_sub_fields = ['REQUEST_ID_CLIENT', 'REQUEST_DATE', 'REQUEST_COMMENT',
 'WKP_PARENT_USUAL_NAME', 'sourceFile']
 
 # To-be-validated data fields in DCR ITEM 
-To_be_validated = ['Administrative_Title_cn_g__pc', 
+To_be_validated = ['Job_Title_g__c', 
 'Gender_g__pc', 
 'LastName', 
 'Professional_Type_g__pc', 

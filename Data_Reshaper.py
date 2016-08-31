@@ -17,8 +17,52 @@ SFDC_B = SFDC_DCR_ITEM[SFDC_DCR_ITEM.Change_Request_ref_g__c.isin(B_Master['B_Ma
 SFDC_B_In = SFDC_B[SFDC_B.Field_API_Name_g__c.isin(To_be_validated)]
 Departure = SFDC_B_In[['Id', 'Field_API_Name_g__c', 'Name', 'Old_Field_Value_Text_g__c', 'Field_value_text_g__c', 'Change_Request_ref_g__c', 'sourceFile']]
 
-# Entries that SHOULD go for validation
-Depature_Stamped = getRightId(Departure)
+# Revalidation #
+Reval = Departure.groupby(['Change_Request_ref_g__c', 'Field_API_Name_g__c']).apply(lambda x: getRightId(x))
+Reval_Fields = Reval[Reval.Field_API_Name_g__c.isin(['Professional_Subtype_g__pc','LastName', 'Job_Title_g__c'])]
+Reval_Fields_Export = Reval_Fields[Reval_Fields.Field_value_text_g__c.notnull()]
+
+# Adding requestor remarks from SFDC_DCR #
+SFDC_Remarks = SFDC_DCR[['Id', 'Requestor_Remarks_g__c', 'Master_DCR_g__c']]
+SFDC_Remarks = SFDC_Remarks[SFDC_Remarks.Requestor_Remarks_g__c.notnull()]
+SFDC_Remarks = SFDC_Remarks[SFDC_Remarks.Master_DCR_g__c.isnull()]
+
+Reval_Fields_Remarks = Reval_Fields_Export.merge(SFDC_Remarks, left_on = 'Change_Request_ref_g__c', right_on = 'Id', how = 'left')
+
+writer = ExcelWriter('/Users/mengjichen/Desktop/Roche/201607/Revalidation_July.xlsx')
+Reval_Fields_Remarks.to_excel(writer, 'Sheet1')
+writer.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Strip unwanted list name from DataIn columns #
 # IND_GENDER_COD: [GEN.M] -> [M]
@@ -30,6 +74,7 @@ DataIn['IND_TITLE_COD'] = DataIn['IND_TITLE_COD'].map(lambda x: str(x).strip('TI
 DataIn['WKP_SPECIALITY_1'] = DataIn['WKP_SPECIALITY_1'].map(lambda x: str(x).strip('SP.WCN.')) # NOTE: WKP_* and IND_* are using the same mapping sheet
 # Convert ACT_ROLE_1 & IND_TITLE_COD to numeric values
 DataIn[['ACT_ROLE_1', 'IND_TITLE_COD']] = DataIn[['ACT_ROLE_1', 'IND_TITLE_COD']].apply(pd.to_numeric())
+DataIn['ACT_ROLE_1'] = pd.to_numeric(DataIn['ACT_ROLE_1'])
 
 
 ############################## Label-Code Conversion ####################################

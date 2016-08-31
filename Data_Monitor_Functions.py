@@ -58,11 +58,21 @@ def save_xls(list_dfs, xls_path):
     writer.save()
 
 
-# Remove unvalidated ID in each master DCR (ETL*)
-	# filter DCRs by string length of Id
+# For each field to be validated, if both 18-digit & 12-digit Id exist, keep the 18-digit one
 def getRightId(x):
 	if x['Id'].str.len().max() > x['Id'].str.len().min():
 		x = x[x['Id'].str.len() == 18]
 	return(x)
+
+
+
+
+
+
+
+
+
+
+
 
 
