@@ -1,0 +1,33 @@
+# -*- coding: utf-8 -*-
+import sys
+import scrapy
+from datetime import datetime
+from scrapy.http import Request, FormRequest, TextResponse
+from scrapy.spiders import CrawlSpider,Rule
+from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import Spider
+from scrapy.selector import Selector
+import logging
+from ..items import HosItem
+#from scrapy.stats import Stats
+
+
+# 全国所有内科医生
+html = 'https://www.guahao.com/search/expert?q=内科'
+
+class Crawler(CrawlSpider):
+    name = "crawler"
+    allowed_domains = ["guahao.com"]
+    start_urls = [
+        "https://www.guahao.com/search?q=内科"
+    ]
+
+    rules = [
+        Rule(LinkExtractor(allow = ('\?Dept=\w+.*')),
+        callback = 'parse_table', follow = True),x
+
+        Rule(LinkExtractor(allow = ('\?Dept=\w+.*week=2')),
+        callback = 'parse_table', follow = True)
+     ]
+
+
