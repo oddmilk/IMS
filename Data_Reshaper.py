@@ -29,7 +29,7 @@ SFDC_Remarks = SFDC_Remarks[SFDC_Remarks.Master_DCR_g__c.isnull()]
 
 Reval_Fields_Remarks = Reval_Fields_Export.merge(SFDC_Remarks, left_on = 'Change_Request_ref_g__c', right_on = 'Id', how = 'left')
 
-writer = ExcelWriter('/Users/mengjichen/Desktop/Roche/201607/Revalidation_July.xlsx')
+writer = ExcelWriter('/Users/mengjichen/Desktop/Roche/201609/Revalidation_Sep.xlsx')
 Reval_Fields_Remarks.to_excel(writer, 'Sheet1')
 writer.save()
 
