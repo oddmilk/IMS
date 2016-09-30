@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import math
 from pandas import ExcelWriter
+import csv
 
 # read in data
 DF_ID = pd.read_excel('/Users/mengjichen/Desktop/TO_SPLIT.xlsx', "Sheet1")
@@ -26,5 +27,9 @@ DF_grouped = DF.groupby(DF.groups)
 # split the data frame by group number:
 writer = ExcelWriter('/Users/mengjichen/Desktop/iView_Process/Process.xlsx')
 for (frameno, frame) in DF_grouped:
-	frame.T.to_excel(writer, 'sheet%s' % frameno)
+	x = frame.To_Split.str.cat()
+	y = pd.Series([x])
+	z = pd.DataFrame([y])
+	z.to_excel(writer, 'sheet%s' % frameno)
+writer.save()
 
