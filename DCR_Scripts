@@ -1,0 +1,19 @@
+#################################
+	# COMPUTATION #
+		# NUMBER OF CALLS PER DOCTOR WHO HAVE RECEIVED KM# 
+DCR_TBL = pd.read_excel('/Users/mengjichen/Desktop/Advanced_Analytics/MCM/data_tables/Output/doctor_table.xlsx')
+D1 = DCR_TBL.groupby('DOCTOR_ID', as_index = False)
+Call_Count = D1['CALL_ID'].agg('count')
+
+D2 = DCR_TBL.groupby(['DOCTOR_ID','KM_ID'], as_index = False)
+KM_DURATION = D2['DURATION'].agg('sum') # this returns the total time spent on each KM (summing through all calls to a doctor)
+
+		# DROP KM_ID with no valid message: ba66ce63b20e444bb396e628554bffc5
+KM_DURATION_VALID = KM_DURATION[KM_DURATION.KM_ID != 'ba66ce63b20e444bb396e628554bffc5']
+
+len(Call_Count.DOCTOR_ID.unique()) # Total number of doctors who have received at least one call (FB'ed)
+len(KM_DURATION.DOCTOR_ID.unique())
+len(KM_DURATION_VALID.DOCTOR_ID.unique())
+
+		# Doctors who have never received any KM-containing call sessions
+KM_Missed = KM_Count[KM_Count.KM_ID == 0].DOCTOR_ID

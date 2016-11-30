@@ -1,0 +1,62 @@
+# function to export model summary #
+
+ols_output = model.summary().as_text()
+f = open("ols_output.txt", "w")
+f.write(ols_output)
+f.close()
+
+import os
+import glob
+import zipfile
+
+allFiles = glob.glob(os.path.join(unzipper_source, '*.zip'))
+
+for file_ in allFiles:
+	zip_ref = zipfile.ZipFile(file_)
+	zip_ref.extractall(unzipper_destination)
+	zip_ref.close()
+
+# Summary stats
+# Courtesy: Chris Albon
+def get_stats(data):
+	return {'min': group.min(),
+	'max': group.max(),
+	'count': group.count(),
+	'mean': group.mean()}
+
+
+# read multiple csv files and concatenate to one data frame
+def readFile(path, pattern_, id_):
+	allFiles = glob.glob(os.path.join(path, pattern_))
+	frame = pd.DataFrame()
+	list_ = []
+	for file_ in allFiles:
+		if os.stat(file_).st_size > 400:
+			df = pd.read_csv(file_, index_col = None, sep = ";")
+			list_.append(df)
+			df['sourceFile'] = file_
+			frame = pd.concat(list_)
+			frame = frame.rename(columns = {id_: 'Id'})  
+	return(frame)
+
+
+############ Bulk unzip files ##############
+import zipfile
+def unzipper(MoveItPath, DestinationPath):
+	allFiles = glob.glob(os.path.join(MoveItPath, '*.zip'))
+	os.makedirs(DestinationPath)
+	for file_ in allFiles:
+		zip_ref = zipfile.ZipFile(file_)
+		zip_ref.extractall(DestinationPath)
+		zip_ref.close()
+	return("Unzipped!")
+
+
+########  DATA EXPORT ##################################################
+# export a list of dataframes to multiple worksheets in one excel file
+from pandas import ExcelWriter
+def save_xls(list_dfs, xls_path):
+    writer = ExcelWriter(xls_path)
+    for n, df in enumerate(list_dfs):
+        df.to_excel(writer,'sheet%s' % n)
+    writer.save()
