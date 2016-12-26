@@ -52,7 +52,7 @@ def readMoveIt(path, pattern_):
 # export a list of dataframes to multiple worksheets in one excel file
 from pandas import ExcelWriter
 def save_xls(list_dfs, xls_path):
-    writer = ExcelWriter(xls_path)
+    writer = pd.ExcelWriter(xls_path)
     for n, df in enumerate(list_dfs):
         df.to_excel(writer,'sheet%s' % n)
     writer.save()

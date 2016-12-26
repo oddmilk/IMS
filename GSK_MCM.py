@@ -74,7 +74,7 @@ writer.save()
 
 # Portal visit table #
 doctor_scope = DCR_iDA_Portal_User.User_ID.unique()
-visit_scope = MRM_PageView[MRM_PageView.User_ID.isin(doctor_scope)]
+visit_scope = MRM_PageView[MRM_PageView.User_ID.isin(doctor_scope.User_ID)]
 visit = visit_scope.groupby('Visit_ID')['Page_View_ID'].apply(lambda x: len(x.unique())) # Unique PV in a visit
 visit = pd.DataFrame(visit)
 visit.reset_index(inplace = True)
@@ -86,19 +86,145 @@ visit_timestamp['visit_hr'] = visit_timestamp.DateTime.apply(lambda x: str(x)[-2
 visit_timestamp.reset_index(inplace = True)
 visit_table = visit_timestamp.merge(visit, on = 'Visit_ID')
 
+portal_visit = visit_table.merge(Visit_User, on = 'Visit_ID', how = 'left')
+portal_visit = portal_visit.merge(doctor_profile[['User_ID','Int_Segment','REGION']], 
+	on = 'User_ID', how = 'left')
+
 ####################################################################################################
 # Simple plotting #
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Doctor data against portal perf
-p1 = sns.stripplot(x = "PV_Visit_Ratio", y = "Int_Segment", data = doctor_profile, jitter = 0.05, linewidth = 1)
+p1 = sns.stripplot(x = "PV_Visit_Ratio", y = "REGION", data = doctor_profile, jitter = 0.05, linewidth = 1)
 p2 = sns.stripplot(x = "PV_Visit_Ratio", y = "REGION", hue = "KM_COUNT", data = doctor_profile, 
 	jitter = True, linewidth = 1, palette = "Set2", split = True)
 p3 = sns.factorplot(x = "REGION", y = "PV_Visit_Ratio", hue = "KM_COUNT", kind = "bar", ci = None, data = doctor_profile)
 
 # Visit hour against page count
-p4 = sns.factorplot(x = "visit_hr", y = "PV_Count", ci = None, data = visit_table)
+p4 = sns.factorplot(x = "visit_hr", y = "PV_Count", ci = None, data = portal_visit)
+p5 = sns.factorplot(x = "visit_hr", y = "PV_Count", hue = "Int_Segment", ci = None, data = portal_visit, size = 4, legend = False)
+plt.legend(loc = 'upper left')
+plt.xlabel('visit hour')
+plt.ylabel('PageViews')
+plt.title('PageView/Time by Doctor National Segment')
+
+p5 = sns.factorplot(x = "visit_hr", y = "PV_Count", hue = "REGION", ci = None, data = portal_visit, size = 4, legend = False)
+plt.legend(loc = 'upper left')
+plt.xlabel('visit hour')
+plt.ylabel('PageViews')
+plt.title('PageView/Time by REGION')
+
+# Portal-only physicians #
+	# region against types of campaign #
+	# raw data: content
+test = pd.crosstab(content.region, [content.campaign_type, content.department])
+test = test.reset_index()
+
+test = content.groupby(['region', 'campaign_type', 'grade']).apply(lambda x: len(x))
+test = pd.DataFrame(test)
+test.reset_index(inplace = True)
+test.columns = ['region','campaign_type','grade','unique_PV']
+
+g = sns.factorplot(x = "region", y = "unique_PV", hue = "dept", col = "campaign_type",
+	data = test, capsize = .2, palette = "YlGnBu_d", size = 6, aspect = .75)
+g.despine(left = True)
+
+# setting the positions and width for the bars
+pos = list(range(len(test['3rd party literature'])))
+width = 0.25
+
+# plotting the bars
+fig, ax = plt.subplots(figsize = (20, 10))
+
+# Creating a bar with 3rd party literature data in position pos,
+plt.bar(pos,
+	test['3rd party literature'],
+	width,
+	alpha = 0.5,
+	color = '#EE3224',
+	label = test['region'][0])
+
+plt.bar([p + width for p in pos],
+	test['academic frontier'],
+	width,
+	alpha = 0.5,
+	color = '#F78F1E',
+	label = test['region'][1])
+
+plt.bar([p + width*2 for p in pos],
+	test['g-brand'],
+	width,
+	alpha = 0.5,
+	color = '#FFC222',
+	label = test['region'][2])
+
+plt.bar([p, width*3 for p in pos],
+	test['g-lecture'],
+	width,
+	alpha = 0.5,
+	color = '#008080',
+	label = test['region'][3])
+
+
+plt.bar([p, width*4 for p in pos],
+	test['g-link'],
+	width,
+	alpha = 0.5,
+	color = '#003366',
+	label = test['region'][4])
+
+plt.bar([p, width*5 for p in pos],
+	test['g-seminar'],
+	width,
+	alpha = 0.5,
+	color = '#468499',
+	label = test['region'][5])
+
+plt.bar([p, width*6 for p in pos],
+	test['g-video'],
+	width,
+	alpha = 0.5,
+	color = '#ff6666',
+	label = test['region'][6])
+
+plt.bar([p, width*7 for p in pos],
+	test['g-webinar'],
+	width,
+	alpha = 0.5,
+	color = '#ccff00',
+	label = test['region'][7])
+
+plt.bar([p, width*8 for p in pos],
+	test['ime'],
+	width,
+	alpha = 0.5,
+	color = '#ff7f50',
+	label = test['region'][8])
+
+ax.set_ylabel('PageView')
+ax.set_title('PageView against Campaign Type')
+ax.set_xticks([p + 1.5 * width for p in pos])
+ax.set_xticklabels(test['region'])
+plt.xlim(min(pos)-width, max(pos)+width*8)
+plt.ylim([0, max(test['3rd party literature']+
+	test['academic frontier']+
+	test['g-brand']+
+	test['campaign_type']+
+	test['g-lecture']+
+	test['g-link']+
+	test['g-seminar']+
+	test['g-video']+
+	test['g-webinar']+
+	test['ime']
+	)])
+
+plt.legend(['3rd party literature','academic frontier','g-brand','campaign_type',
+	'g-lecture','g-link','g-seminar','g-video','g-webinar','ime'])
+
+plt.grid()
+
+plt.show()
 
 
 # Multiple regression # 
@@ -275,7 +401,7 @@ CPM_1_df.columns = ['MONTH','Int_Segment','DEPARTMENT','REGION','Doctors_Total']
 
 	# total amount of unique calls in each segment combo by month
 CPM_2 = CPM_PREP['CALL_ID'].apply(lambda x: len(x.unique()))
-CPM_2_df = pd.DataFrame(CPM_2)
+CPM_2_df = pd.DataFrame(CPM_2
 CPM_2_df.reset_index(inplace = True)
 CPM_2_df.columns = ['MONTH','Int_Segment','DEPARTMENT','REGION','Calls_Total']
 
@@ -429,66 +555,6 @@ from scipy import stats
 stats.ttest_1samp(Doctor_Table['CALL_COUNT'], 0)
 from statsmodels.formula.api import ols
 
-AB_Subset = Doctor_Table[Doctor_Table.Int_Segment.isin([1,2])]
-AB_S = AB_Subset[AB_Subset.MAX_CALL_DURATION <= 1000] # remove outliers
-# variable assignment
-AB_S.groupby('DEPARTMENT').['KM_CALL_RATIO'].value_counts()
-
-m1 = ols("KM_CALL_RATIO ~ C(REGION) + C(DEPARTMENT)", AB_S).fit()
-print(m1.summary())
-m2 = ols("CALL_COUNT ~ C(REGION) + C(DEPARTMENT)", AB_S).fit()
-print(m2.summary())
-
-m2 = ols("Total_PV ~ C(Tag) + C(Int_Segment) + C(REGION) + C(DEPARTMENT)", Title_Performance).fit()
-print(m2.summary())
-
-
-
-# Logistic reg
-dummy_segments = pd.get_dummies(Doctor_Table['Int_Segment'], prefix = 'Doctor_Segment')
-dummy_regions = pd.get_dummies(Doctor_Table['REGION'], prefix = 'Region') 
-cols_to_keep = Doctor_Table[['KM_COUNT','CALL_COUNT']]
-data_logistic = cols_to_keep.join(dummy_segments.ix[:, 'Doctor_Segment_2':]).join(dummy_regions.ix[:, 'Region_East':])
-# manually add the intercept
-data_logistic['intercept'] = 1.0
-# predicting KM_COUNT with: CALL_OUNT, Doctor_Segment, Region
-train_cols = data_logistic.columns[1:]
-logistic = sm.Logit(data_logistic['KM_COUNT']/50, data_logistic[train_cols])
-
-# fit the model
-result = logistic.fit()
-print(result.summary())
-
-
-
-# Pair plot: scatter matrices
-seaborn.pairplot(Doctor_Table, vars = ['AVG_CALL_DURATION', 'CALL_COUNT'], kind = 'REG', hue = 'Int_Segment')
-
-
-### Exploration ###
-import matplotlib.pyplot as plt
-	# create an empty matplotlib figure with 3 subplots)
-F1 = plt.figure()
-F1, axes = plt.subplots(1,1)
-F1, axes = plt.subplots(2,2, sharex = True, sharey = True)
-ax.plot(x, y, linestyle = '--', color = 'g')
-
-P1 = Doctor_Table[Doctor_Table.CALL_COUNT == 1] 	# Physicians having one call only in the time range #
-P1_reshaped = 
-P2 = Doctor_Table[Doctor_Table.CALL_COUNT > 1]
-ax1.scatter(P1.AVG_CALL_DURATION, P1.AVG_PG_DURATION, color = 'k')
-ax2.scatter(P2.AVG_CALL_DURATION, P2.AVG_PG_DURATION, color = 'k')
-
-
-# pd.options.display.mpl_style = 'default'
-P1.groupby('Int_Segment').AVG_CALL_DURATION.hist(alpha = 0.4)
-
-
-P1.groupby('Int_Segment').AVG_CALL_DURATION.plot(kind = 'kde', ax = axs[1])
-
-	# Distribution # 
-
-	# Correlation # 
 
 
 
