@@ -1,10 +1,10 @@
-# Load required packages
-import os
-import pandas as pd
-import numpy as np
-import re
 
-
+# 将多个dataframe存储至一个excel文件中多个sheet
+def save_wb(list_dfs, wb_path):
+    writer = pd.ExcelWriter(wb_path)
+    for n, df in enumerate(list_dfs):
+        df.to_excel(writer,'sheet%s' % n)
+    
 
 # Use converters to remove extra whitespace when parsing the file (to be moved to information_extraction file)
 def strip(text):
@@ -26,21 +26,21 @@ def numExtraction(var, pat):
     return ','.join(tmp)
 
 
-### 对所有简介类字段，将所有中文符号改成英文符号 ###
+# 对所有简介类字段，将所有中文符号改成英文符号 #
 def punctuationConverter(s):
   re.sub('，', ',', s)
   re.sub('。', '.', s)
   re.sub('：', ':', s)
 
 
-# functions extracting information at hospital level # 
+# 从医院（科室）文字简介中抓取床位数 #
 def bedNum(text):
     try:
         return re.findall("(\d+)余?张", text)
     except TypeError:
         return text
 
-# Select the first element # 
+# 对于有多个床位数信息的文字简介，选第一个（通常默认第二个及之后的属于breakdown的信息） #
 def first(text):
   if len(text) >= 1:
       return text[0]
@@ -66,8 +66,6 @@ def secondFound(text):
   else:
     return second(text)
 
-
-
 # Select the element with max length
 def maxElement(text):
   a = []
@@ -79,14 +77,8 @@ def maxElement(text):
     return max(list(text), key = len)
 
 
-
-
-try:
-    found = re.findall("手术(.+?例)?，|手术(.+?例)?。|手术(.+?例)?；", text)
-except AttributeError:
-    found = '' # apply your error handling
-
-
+# 从文字介绍中抽取门诊量 #
+  # 门诊量的文字形式： #
 def outPatient(text):
     try:
         return re.findall("年?月?日?门急?诊量\w+\d+\w+人次?", text)
@@ -99,7 +91,7 @@ def outPatient1(text):
     except TypeError:
         return text
 
-
+# 住院量 #
 def inPatient(text):
     try:
         return re.findall("出院(\w+\d+多?余?人次?)|收治(\w+\d+多?余?人次?)|住院病人(\w+\d+多?余?人次?)", text)
@@ -127,35 +119,61 @@ def calcSurgeries(text):
     else: 
       return calc(text)
 
-def deptChief(text):
+def Chief(text):
     try:
         return re.findall('主任医师(\d+)人', text)
     except TypeError:
         return text  
 
-def deptViceChief(text):
+def ViceChief(text):
     try:
         return re.findall('副主任医师(\d+)人', text)
     except TypeError:
         return text  
 
-def deptResident(text):
+def Resident(text):
     try:
         return re.findall('住院医师(\d+)人', text)
     except TypeError:
         return text
 
-def deptAttending(text):
+def Attending(text):
     try:
         return re.findall('主治医师(\d+)人', text)
     except TypeError:
         return text
 
-def deptNurse(text):
+def Nurse(text):
     try:
         return re.findall('护士(\d+)人', text)
     except TypeError:
         return text
+
+def PhDAdvisor(text):
+    try:
+        return re.findall('博士生导师(\d+)人', text)
+    except TypeError:
+        return text
+
+def MasterAdvisor(text):
+    try:
+        return re.findall('硕士生导师(\d+)人', text)
+    except TypeError:
+        return text
+
+def Expert(text):
+    try:
+        return re.findall('专家(\d+)人', text)
+    except TypeError:
+        return text
+
+def Professor(text):
+    try:
+        return re.findall('教授(\d+)人', text)
+    except TypeError:
+        return text
+
+
 
 def dcrGender(text):
     try:
@@ -183,14 +201,6 @@ def exist(text, keyword):
     else:
         return 0
 
-# bulk export data to excel #
-from pandas import ExcelWriter
-
-def save_xls(list_dfs, xls_path):
-    writer = pd.ExcelWriter(xls_path)
-    for n, df in enumerate(list_dfs):
-        df.to_excel(writer,'sheet%s' % n)
-    writer.save()
 
 
 import os
@@ -201,22 +211,12 @@ def make_dirs(path):
   if not os.path.isdir(path):
     os.makedirs(path)
 
-# obtain the total number of lines in a file
+
 def get_total_lines(filepath):
   if not os.path.exists(filepath):
     return 0
   cmd = 'wc -l %s' % filepath  # wc: word count
   return int(os.popen(cmd).read().split()[0])
-
-
-
-ghw = pd.read_excel("/Users/mengjichen/Desktop/POC/ghw.xlsx", sep=r'',
-                      names=["data_source", "province", "city", 
-                          "hospital", "hospital_url", "hospital_synopsis", "hospital_phone", "hospital_address",
-                          "dept", "dept_url", "dept_synopsis", 
-                          "doctor", "doctor_url", "doctor_synopsis", "doctor_skill", "doctor_position", "hospital_level"],
-                      converters = {'hospital' : strip
-                                    })
 
 
 

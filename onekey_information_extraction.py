@@ -6,7 +6,7 @@ Information Extraction
 '''
 
 ####################################################################################################
-# Load packages 
+# 加载函数包
 
 import os
 import pandas as pd
@@ -14,139 +14,171 @@ import numpy as np
 import re
 from pandas import ExcelWriter
 
-# Set working directory
+# 读取当前所在路径
 path = os.getcwd()
 files = os.listdir(path)
-# Pick out files of interest
-files_xlsx = [f for f in files if f[-4:] == 'xlsx'] 
-# Initialize empty dataframe
-raw = pd.DataFrame()
-# Loop over list of excel files to append to the empty dataframe
-for f in files_xlsx:
-  data = pd.read_excel(f, 'Sheet1')
-  raw = raw.append(data)
+# 读取所有csv格式的源文件
+files_csv = [f for f in files if f[-3:] == 'csv'] 
+
+# 对同一个源网站爬下的csv格式的数据数数
+total_vol = []
+for i in range(len(files_csv)):
+    temp = get_total_lines(files_csv[i])
+    total_vol.append(temp)
 
 
-# Find physicians with identical names working in the same hospital and same department #
-test = raw[['hospital','dept','doctor','data_source']]
-t1 = test.loc[test['data_source'] != '好大夫']
-dl1 = t1[['hospital','dept','doctor']].duplicated(keep = False) # 1719
+# 将csv格式的源文件读取为列表
+raw_list = []
 
-t2 = test.loc[test['data_source'] != '挂号网']
-dl2 = t2[['hospital','dept','doctor']].duplicated(keep = False)
+for f in files_csv:
+  data = pd.read_csv(f, sep = ";")
+  raw_list.append(data)
 
-t3 = test.loc[test['data_source'] != '丁香园']
-dl3 = t3[['hospital','dept','doctor']].duplicated(keep = False)
-
-dl4 = test[['hospital','dept','doctor']].duplicated(keep = False)
-
-
-
-##############################
-# Split data into three sets #
-##############################
-  # Hospital
-fields_hco = ['data_source', 'province', 'city', 'hospital', 'hospital_level', 'hospital_url', 'hospital_phone', 'hospital_address', 'hospital_synopsis']
-hco = raw[fields_hco].drop_duplicates().reset_index(drop = True)
-  # Department
-fields_dept = ['data_source', 'hospital', 'dept', 'dept_url', 'dept_synopsis']
-dept = raw[fields_dept].drop_duplicates().reset_index(drop = True)
-  # Physician
-fields_dcr = ['data_source', 'hospital', 'dept', 'doctor', 'doctor_url', 'doctor_position', 'doctor_skill', 'doctor_synopsis']
-dcr = raw[fields_dcr].reset_index(drop = True)
-
-#############################
-###### Hospital level #######
-#############################
-
-# Keep sentences that have numeric values
-alphanumeric_pat = re.compile("(\w*\d+\w*)")
-hco['synopsis_s'] = hco.hospital_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
-
-	# Number of beds #
-hco['beds'] = hco.hospital_synopsis.apply(lambda x: bedNum(x))
-hco['beds'] = hco.beds.apply(lambda x: firstFound(x))
-	# Number of outpatients #
-hco['outpatients'] = hco.hospital_synopsis.apply(lambda x: outPatient(x))
-hco['outpatients'] = hco.outpatients.apply(lambda x: firstFound(x))
-
-  # Number of inpatients # 
-hco['inpatients'] = hco.hospital_synopsis.apply(lambda x: inPatient(x))
-hco['inpatients'] = hco.inpatients.apply(lambda x: firstFound(x))
-
-hco['inpatients2'] = hco.hospital_synopsis.apply(lambda x: inPatient2(x))
-hco['inpatients2'] = hco.inpatients2.apply(lambda x: firstFound(x))
-
-hco['inpatients3'] = hco.hospital_synopsis.apply(lambda x: inPatient3(x))
-hco['inpatients3'] = hco.inpatients3.apply(lambda x: firstFound(x))
-
-	# Number of surgeries # 
-hco['surgeries'] = hco.hospital_synopsis.apply(lambda x: surgeries(x))
-hco['surgeries'] = hco.surgeries.apply(lambda x: firstFound(x))  # partial success. # 台手术is missing
-
-# Extraction assessment
-hco_grp = hco.groupby('data_source')
-# hospital output assessment
-hco_grp[hco.columns[1:]].count()
+# 将源文件从csv转为xlsx格式保存
+for i in range(len(raw_list)):
+  filename = raw_list[i].province.unique()
+  writer = pd.ExcelWriter(os.path.join(str(filename) + '.xlsx'))
+  raw_list[i].to_excel(writer, 'raw')
+  writer.save()
 
 
-########################################
-##### Department level 
-########################################
-dept['synopsis_s'] = dept.dept_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
-	# Number of beds #
-dept['beds'] = dept.dept_synopsis.apply(lambda x: bedNum(x)).apply(lambda x: firstFound(x))
 
-	# Number of outpatients #
-dept['outpatients'] = dept.dept_synopsis.apply(lambda x: outPatient(x)).apply(lambda x: firstFound(x))
-	# Number of inpatients #
-dept['inpatients'] = dept.dept_synopsis.apply(lambda x: inPatient(x)).apply(lambda x: firstFound(x))
+# 将数据分成三组：医院，科室，医生 #
+fields_hco = ['data_source', 'province', 'city', 'hospital', 'hospital_level', 'hospital_url', 'hospital_phone', 'hospital_address', 'hospital_synopsis']   # 医院
+fields_dept = ['data_source', 'hospital', 'dept', 'dept_url', 'dept_synopsis'] # 科室
+fields_dcr = ['data_source', 'hospital', 'dept', 'doctor', 'doctor_url', 'doctor_position', 'doctor_skill', 'doctor_synopsis']   # 医生
 
-	# Number of surgeries #
-dept['surgeries'] = dept.dept_synopsis.apply(lambda x: surgeries(x)).apply(lambda x: maxElement(x))  # need to deal with NoneType
+dcr_list = []
+dept_list = []   
+hco_list = [] 
 
-
-	# Number of 主任医师 | 副主任医师 | 住院医师 | 主治医师 | 博士 | 硕士 #
-dept['chief'] = dept.dept_synopsis.apply(lambda x: deptChief(x)).apply(lambda x: firstFound(x))
-dept['ViceChief'] = dept.dept_synopsis.apply(lambda x: deptViceChief(x)).apply(lambda x: firstFound(x))
-dept['Resident'] = dept.dept_synopsis.apply(lambda x: deptResident(x)).apply(lambda x: firstFound(x))
-dept['Attending'] = dept.dept_synopsis.apply(lambda x: deptAttending(x)).apply(lambda x: firstFound(x))
-dept['Nurse'] = dept.dept_synopsis.apply(lambda x: deptNurse(x)).apply(lambda x: firstFound(x))
-
-dept_grp = dept.groupby('data_source')
-dept_grp[dept.columns[1:]].count()
+for i in range(len(raw_list)):
+    hco_temp = raw_list[i][fields_hco].drop_duplicates().reset_index(drop = True)
+    hco_list.append(hco_temp)
+    dept_temp = raw_list[i][fields_dept].drop_duplicates().reset_index(drop = True)
+    dept_list.append(dept_temp)
+    dcr_temp = raw_list[i][fields_dcr].drop_duplicates().reset_index(drop = True)
+    dcr_list.append(dcr_temp)
 
 
-########################################
-##### Physician level 
-########################################
-dcr['doctor_synopsis_shortened'] = dcr.doctor_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
 
-dcr['gender'] = dcr.doctor_synopsis.apply(lambda x: dcrGender(x)).apply(lambda x: firstFound(x))
-  # is_PHD
-dcr['is_Phd'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '博士'))
-  # is_master
-dcr['is_ms'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '硕士'))
-  # has_publication 发表
-dcr['has_publication'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '论文'))
-  # is_mentor 导师
-dcr['is_mentor'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '导师'))
-  # is_involved_in_clinical_trial 临床试验，新药，试验
-dcr['is_involved_in_clinical_trial'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '临床试验|新药|试验'))
-  # is_retired 退休
-dcr['is_retired'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '退休'))
-  # is_public_speaker
-dcr['is_public_speaker'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '讲座'))
-  # is_royal_society_member
-dcr['membership'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '学会会员|委员'))
-  # study_abroad
-dcr['study_abroad'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '留学'))
-  # patent
-dcr['patent'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '专利'))  
-  # school: undergrad 
-dcr['school'] = dcr.doctor_synopsis.apply(lambda x: grad(x)).apply(lambda x: firstFound(x))
-  # school: grad / phd (to be done)
-dcr['grad_1'] = dcr.doctor_synopsis.apply(lambda x: grad(x)).apply(lambda x: secondFound(x))
+# 医院，科室 #
+for i in range(len(raw_list)):
+  # 带数字的内容 #
+#    hco_list[i]['s'] = hco_list[i].hospital_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
+#    dept_list[i]['s'] = dept_list[i].dept_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
+  # 床位数 #
+    hco_list[i]['hco_beds'] = hco_list[i].hospital_synopsis.apply(lambda x: bedNum(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_beds'] = dept_list[i].dept_synopsis.apply(lambda x: bedNum(x)).apply(lambda x: firstFound(x))
+  # 门诊量 #
+    hco_list[i]['hco_outpatients'] = hco_list[i].hospital_synopsis.apply(lambda x: outPatient(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_outpatients'] = dept_list[i].dept_synopsis.apply(lambda x: outPatient(x)).apply(lambda x: firstFound(x))
+  # 住院量 # 
+    hco_list[i]['hco_inpatients'] = hco_list[i].hospital_synopsis.apply(lambda x: inPatient(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_inpatients'] = dept_list[i].dept_synopsis.apply(lambda x: inPatient(x)).apply(lambda x: firstFound(x))
+  # 手术量 # 
+    hco_list[i]['hco_surgeries'] = hco_list[i].hospital_synopsis.apply(lambda x: surgeries(x)).apply(lambda x: firstFound(x)) # 台手术is missing
+    dept_list[i]['dept_surgeries'] = dept_list[i].dept_synopsis.apply(lambda x: surgeries(x)).apply(lambda x: firstFound(x))
+  # 主任医师 #
+    hco_list[i]['hco_Chief'] = hco_list[i].hospital_synopsis.apply(lambda x: Chief(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Chief'] = dept_list[i].dept_synopsis.apply(lambda x: Chief(x)).apply(lambda x: firstFound(x))
+  # 副主任医师 #
+    hco_list[i]['hco_ViceChief'] = hco_list[i].hospital_synopsis.apply(lambda x: ViceChief(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_ViceChief'] = dept_list[i].dept_synopsis.apply(lambda x: ViceChief(x)).apply(lambda x: firstFound(x))
+  # 住院医师 # 
+    hco_list[i]['hco_Resident'] = hco_list[i].hospital_synopsis.apply(lambda x: Resident(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Resident'] = dept_list[i].dept_synopsis.apply(lambda x: Resident(x)).apply(lambda x: firstFound(x))
+  # 主治医师 #  
+    hco_list[i]['hco_Attending'] = hco_list[i].hospital_synopsis.apply(lambda x: Attending(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Attending'] = dept_list[i].dept_synopsis.apply(lambda x: Attending(x)).apply(lambda x: firstFound(x))
+  # 护士 #
+    hco_list[i]['hco_Nurse'] = hco_list[i].hospital_synopsis.apply(lambda x: Nurse(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Nurse'] = dept_list[i].dept_synopsis.apply(lambda x: Nurse(x)).apply(lambda x: firstFound(x))
+  # 博士生导师 #
+    hco_list[i]['hco_PhdAdvisor'] = hco_list[i].hospital_synopsis.apply(lambda x: PhDAdvisor(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_PhdAdvisor'] = dept_list[i].dept_synopsis.apply(lambda x: PhDAdvisor(x)).apply(lambda x: firstFound(x))
+  # 硕士生导师 #
+    hco_list[i]['hco_MasterAdvisor'] = hco_list[i].hospital_synopsis.apply(lambda x: MasterAdvisor(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_MasterAdvisor'] = dept_list[i].dept_synopsis.apply(lambda x: MasterAdvisor(x)).apply(lambda x: firstFound(x))    
+  # 专家 #
+    hco_list[i]['hco_Expert'] = hco_list[i].hospital_synopsis.apply(lambda x: Expert(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Expert'] = dept_list[i].dept_synopsis.apply(lambda x: Expert(x)).apply(lambda x: firstFound(x))
+  # 教授 #
+    hco_list[i]['hco_Professor'] = hco_list[i].hospital_synopsis.apply(lambda x: Professor(x)).apply(lambda x: firstFound(x))
+    dept_list[i]['dept_Professor'] = dept_list[i].dept_synopsis.apply(lambda x: Professor(x)).apply(lambda x: firstFound(x))    
+
+
+# 医生 #
+for i in range(len(dcr_list)):
+  # 性别 #
+    dcr_list[i]['gender'] = dcr_list[i].doctor_synopsis.apply(lambda x: dcrGender(x)).apply(lambda x: firstFound(x))
+  # 是否有博士学历 # {1: 有, 0: 无}
+    dcr_list[i]['is_PhD'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '博士'))
+  # 是否有硕士学历 #
+    dcr_list[i]['is_master'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '硕士'))
+  # 是否发表论文 #
+    dcr_list[i]['has_publication'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '论文'))
+  # 是否导师 #
+    dcr_list[i]['is_mentor'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '导师'))
+  # 是否参与临床试验 #
+    dcr_list[i]['is_involved_in_clinical_trial'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '临床试验|新药|试验'))
+  # 是否退休 #
+    dcr_list[i]['is_retired'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '退休'))
+  # 公开讲座 #
+    dcr_list[i]['is_public_speaker'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '讲座'))
+  # 会员 #
+    dcr_list[i]['membership'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '学会会员|委员'))
+  # 出国 #
+    dcr_list[i]['study_abroad'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '留学'))
+  # 专利 #
+    dcr_list[i]['patent'] = dcr_list[i].doctor_synopsis.apply(lambda x: exist(x, '专利'))  
+  # 本科院校 #
+    dcr_list[i]['school'] = dcr_list[i].doctor_synopsis.apply(lambda x: grad(x)).apply(lambda x: firstFound(x))
+  # 本科以上学历
+    dcr_list[i]['grad_1'] = dcr_list[i].doctor_synopsis.apply(lambda x: grad(x)).apply(lambda x: secondFound(x))
+
+
+# 合并医院、科室、医生数据 #
+s1 = hco_list[0].columns
+s2 = dept_list[0].columns
+s_i = list(set(s1) & set(s2)) # hco_list & dept_list共有字段
+s3 = dcr_list[0].columns
+s_i_2 = list(set(s3) & (set(s1 | s2))) # hco_list & dept_list整合后和dcr_list的共有字段
+
+interim = []
+for i in range(len(raw_list)):
+    t1 = dept_list[i].merge(hco_list[i], how = 'left', on = s_i) # 基于共有字段join
+    t2 = dcr_list[i].merge(t1, how = 'left', on = s_i_2)
+    interim.append(t2)
+    print(len(t2))
+
+
+# 将更新后的dataframe文件以xlsx格式导出
+def save_xlsx(list_dfs, version):
+    for i in range(len(list_dfs)):
+        filename = list_dfs[i].province.unique()
+        writer = pd.ExcelWriter(os.path.join(str(filename) + '.xlsx'))
+        list_dfs[i].to_excel(writer, str(version))
+        writer.save()
+
+for i in range(len(raw_list)):
+    print (i)
+    print (raw_list[i].province.unique())
+
+province_vol = []
+province_nam = []
+for i in range(len(interim)):
+    t1 = len(interim[i])
+    t2 = interim[i].province.unique()
+    province_vol.append(t1)
+    province_nam.append(t2)
+
+data_profile = pd.DataFrame({'province': province_nam, 'volume': province_vol})
+writer = pd.ExcelWriter(os.path.join(os.getcwd() + '/data_profile.xlsx'))
+data_profile.to_excel(writer, 'Sheet1')
+writer.save()
+
+# dcr['doctor_synopsis_shortened'] = dcr.doctor_synopsis.apply(lambda x: numExtraction(x, alphanumeric_pat))
 
   # expertise in: 不孕不育; 妇产科护理;泌尿疾病
 dcr['sterile'] = dcr.doctor_synopsis.apply(lambda x: exist(x, '不孕不育'))

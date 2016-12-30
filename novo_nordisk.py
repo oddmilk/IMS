@@ -163,6 +163,18 @@ writer.save()
 video_tag_v2 = pd.read_excel("video_tag_v2.xlsx")
 v_tag = video_tag_v2.sort_values("entries", ascending = False)[0:12]
 v_tag_index = v_tag.index
+v_tag_kw = v_tag['title_keyword'].tolist()
+
+
+title_kw_data = []
+title_kw_occurrence = []
+
+for i in range(len(v_tag_kw)):
+	x = video_input.loc[video_input['视频标题'].str.contains(v_tag_kw[i], na = False)]
+	title_kw_data.append(x)
+	y = len(x)
+	title_kw_occurrence.append(y)
+
 
 
 title_kw_by_product = []
@@ -325,25 +337,47 @@ plt.savefig('PV_tags.pdf')
 import seaborn as sns
 
 p = []
-for i in range(len(pv_kw_index)):
-	x = occurrence_by_segment[i]
+for i in pv_kw_index:
+	x = occurrence_by_product[i]
 	p.append(x)
 
 p = pd.concat(p, keys = tags_unique[pv_kw_index]).reset_index() 
 
-ax = sns.barplot(x = "MIX医生分级", y = "用户id", hue = "level_0", data = p, palette = "RdBu")
-plt.savefig('tags_by_segment.pdf')
+id_count = p.groupby('level_0')['用户id'].count()
+
+ax = sns.barplot(x = "子产品组", y = "用户id", hue = "level_0", data = p, palette = "RdBu", hue_order = tags_unique[pv_kw_index])
+plt.savefig('tags_by_product.pdf')
 
 
 video_bar = []
-for i in range(len(v_tag_index)):
+
+# by product # 
+for i in v_tag_index:
 	x = title_kw_by_product[i]
 	video_bar.append(x)
 
-v_bar = pd.concat(video_bar, keys = v_tag_index).reset_index()
+v_bar = pd.concat(title_kw_by_product, keys = v_tag_index).reset_index()
 ax = sns.barplot(x = "子产品组", y = "用户id", hue = "level_0", data = v_bar, palette = "RdBu")
 plt.savefig('video_product.pdf')
 plt.clf()
+
+v_bar = pd.concat(title_kw_by_region, keys = v_tag_index).reset_index()
+ax = sns.barplot(x = "大区", y = "用户id", hue = "level_0", data = v_bar, palette = "RdBu")
+plt.savefig('video_region.pdf')
+plt.clf()
+
+
+
+# by region #
+for i in v_tag_index:
+	x = title_kw_by_region[i]
+	video_bar.append(x)
+
+v_bar = pd.concat(video_bar, keys = v_tag_index).reset_index()
+ax = sns.barplot(x = "大区", y = "用户id", hue = "level_0", data = v_bar, palette = "RdBu")
+plt.savefig('video_region.pdf')
+plt.clf()
+
 
 
 #################################
