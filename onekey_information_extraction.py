@@ -148,7 +148,8 @@ s_i_2 = list(set(s3) & (set(s1 | s2))) # hco_list & dept_list整合后和dcr_lis
 interim = []
 for i in range(len(raw_list)):
     t1 = dept_list[i].merge(hco_list[i], how = 'left', on = s_i) # 基于共有字段join
-    t2 = dcr_list[i].merge(t1, how = 'left', on = s_i_2)
+    t2 = pd.concat([t1, dcr_list[i]], axis = 1, join = 'outer')
+#    t2 = dcr_list[i].merge(t1, how = 'left', on = s_i_2)
     interim.append(t2)
     print(len(t2))
 
