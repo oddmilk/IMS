@@ -110,6 +110,24 @@ reg_data_final.to_excel(writer, 'sheet1')
 writer.save()
 
 
+# Explorative data analysis
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+reg_data_final.DOCTOR_NATIONAL_SEGMENT = pd.Series(reg_data_final.DOCTOR_NATIONAL_SEGMENT, dtype = "category")
+reg_data_final.DOCTOR_NATIONAL_SEGMENT = reg_data_final.DOCTOR_NATIONAL_SEGMENT.cat.reorder_categories(['A','B','C','D','N','KDM'], ordered = True)
+
+# put multiple distribution on the same plot
+f0 = plt.hist(reg_data_final.is_active)
+plt.savefig('mail_portal_activity.pdf')
+plt.clf()
+
+f1 = sns.barplot(x = "is_active", y = "doc_open_rate", hue = "DOCTOR_NATIONAL_SEGMENT", data = reg_data_final,
+	palette = {"A":"#f2f9bc", "B":"#bbe4b5", "C":"#57bec0", "D":"#1d8cbe", "KDM":"#2166ab", "N":"#1c2d83"})
+plt.savefig(('open_rate_against_dcr_segment.pdf'))
+plt.clf()
+
+
 # logistic regression model fitting
 import statsmodels.api as sm
 
@@ -127,10 +145,10 @@ result = logit.fit()
 print(result.summary())
 
 
-import matplotlib as plt
-import seaborn as sns
 from statsmodels.graphics.mosaicplot import mosaic
 from matplotlib import pylab
+
+
 
 
 
